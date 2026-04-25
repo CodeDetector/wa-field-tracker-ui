@@ -1,0 +1,113 @@
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from './lib/utils';
+
+// Components
+import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
+import ChatList from './components/ChatList';
+import ChatWindow from './components/ChatWindow';
+import DetailPanel from './components/DetailPanel';
+import OnboardingForm from './components/onboarding/OnboardingForm';
+
+export default function App() {
+  const [sbClient, setSbClient] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    fetch(`${apiUrl}/api/config`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(config => {
+        if (!config.supabaseUrl || !config.supabaseKey) {
+          throw new Error("Invalid configuration received from server.");
+        }
+        const client = createClient(config.supabaseUrl, config.supabaseKey);
+        setSbClient(client);
+        fetchEmployees(client);
+      })
+      .catch(err => {
+        console.error("❌ Failed to initialize Supabase:", err.message);
+        alert("⚠️ Backend connection failed. Please ensure the server is running.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const fetchEmployees = async (client) => {
+    if (!client) return;
+    try {
+      const { data, error } = await client.from('employees').select('*');
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (err) {
+      console.error("❌ Error fetching employees:", err.message);
+    }
+  };
+
+  const handleAddEmployee = async (formData) => {
+    if (!sbClient) {
+      alert("❌ Supabase client not initialized. Please refresh the page.");
+      return;
+    }
+
+    // Map the form fields to the database columns
+    const payload = {
+      Name: formData.Name,
+      Role: formData.Role,
+      Mobile: formData.mobileNumber, 
+      contact: formData.mobileNumber,
+      managedBy: formData.managedBy ? parseInt(formData.managedBy) : null,
+      emailId: formData.emailId || null
+    };
+
+    const { error } = await sbClient.from('employees').insert([payload]);
+    
+    if (error) {
+      console.error('❌ Insert Error:', error);
+      throw new Error(error.message);
+    }
+    
+    alert('✅ Employee onboarded successfully!');
+    fetchEmployees(sbClient);
+    setShowOnboarding(false);
+  };
+
+  return (
+    <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans">
+      <Sidebar />
+      
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar onAddEmployee={() => setShowOnboarding(true)} />
+        
+        <main className="flex-1 flex overflow-hidden">
+          {/* Main Dashboard Layout */}
+          <ChatList employees={employees} />
+          
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex overflow-hidden">
+               <ChatWindow />
+               <DetailPanel />
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {showOnboarding && (
+        <OnboardingForm 
+          onClose={() => setShowOnboarding(false)} 
+          onSave={handleAddEmployee} 
+        />
+      )}
+
+      {/* Background Decor */}
+      <div className="fixed top-0 right-0 -z-10 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+      <div className="fixed bottom-0 left-0 -z-10 w-[300px] h-[300px] bg-indigo-600/5 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4" />
+    </div>
+  );
+}
