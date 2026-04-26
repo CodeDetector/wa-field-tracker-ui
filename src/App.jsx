@@ -10,12 +10,14 @@ import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
 import DetailPanel from './components/DetailPanel';
 import OnboardingForm from './components/onboarding/OnboardingForm';
+import WhatsAppOnboarding from './components/onboarding/WhatsAppOnboarding';
 
 export default function App() {
   const [sbClient, setSbClient] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [targetEmployeeId, setTargetEmployeeId] = useState(null);
+  const [showWAOnboarding, setShowWAOnboarding] = useState(false);
 
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || '';
@@ -66,16 +68,24 @@ export default function App() {
       emailId: formData.emailId || null
     };
 
-    const { error } = await sbClient.from('employees').insert([payload]);
+    const { data, error } = await sbClient.from('employees').insert([payload]).select();
     
     if (error) {
       console.error('❌ Insert Error:', error);
       throw new Error(error.message);
     }
     
-    alert('✅ Employee onboarded successfully!');
+    const newEmp = data?.[0];
+    alert('✅ Employee Registered! Now, please scan the QR code to link their WhatsApp.');
     fetchEmployees(sbClient);
     setShowOnboarding(false);
+    setTargetEmployeeId(newEmp?.id || null);
+    setShowWAOnboarding(true); // Automatically show the QR scanner next
+  };
+
+  const handleLinkWhatsApp = (empId) => {
+    setTargetEmployeeId(empId);
+    setShowWAOnboarding(true);
   };
 
   return (
@@ -83,16 +93,24 @@ export default function App() {
       <Sidebar />
       
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onAddEmployee={() => setShowOnboarding(true)} />
+        <TopBar 
+          onAddEmployee={() => setShowOnboarding(true)} 
+          onWhatsAppOnboarding={() => setShowWAOnboarding(true)}
+        />
         
         <main className="flex-1 flex overflow-hidden">
           {/* Main Dashboard Layout */}
-          <ChatList employees={employees} />
+          <ChatList 
+            employees={employees} 
+            selectedEmployeeId={targetEmployeeId}
+            onSelectEmployee={(emp) => setTargetEmployeeId(emp.id)}
+            onLinkWhatsApp={handleLinkWhatsApp}
+          />
           
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-1 flex overflow-hidden">
-               <ChatWindow />
-               <DetailPanel />
+               <ChatWindow employeeId={targetEmployeeId} />
+               <DetailPanel employeeId={targetEmployeeId} />
             </div>
           </div>
         </main>
@@ -102,6 +120,16 @@ export default function App() {
         <OnboardingForm 
           onClose={() => setShowOnboarding(false)} 
           onSave={handleAddEmployee} 
+        />
+      )}
+
+      {showWAOnboarding && (
+        <WhatsAppOnboarding 
+          employeeId={targetEmployeeId}
+          onClose={() => {
+            setShowWAOnboarding(false);
+            setTargetEmployeeId(null);
+          }} 
         />
       )}
 
