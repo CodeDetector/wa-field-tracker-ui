@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Bell, Command, ChevronDown } from 'lucide-react';
 
-export default function TopBar({ onAddEmployee, onWhatsAppOnboarding }) {
+export default function TopBar({ onAddEmployee }) {
   return (
     <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8 z-20">
       <div className="flex-1 max-w-xl">
@@ -19,13 +19,6 @@ export default function TopBar({ onAddEmployee, onWhatsAppOnboarding }) {
       </div>
 
       <div className="flex items-center gap-6">
-        <button 
-          onClick={onWhatsAppOnboarding}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all active:scale-95 flex items-center gap-2"
-        >
-          WhatsApp Bridge
-        </button>
-
         <button 
           onClick={onAddEmployee}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-2"

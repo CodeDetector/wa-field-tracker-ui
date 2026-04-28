@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './lib/utils';
 
@@ -13,74 +12,62 @@ import OnboardingForm from './components/onboarding/OnboardingForm';
 import WhatsAppOnboarding from './components/onboarding/WhatsAppOnboarding';
 
 export default function App() {
-  const [sbClient, setSbClient] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [targetEmployeeId, setTargetEmployeeId] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWAOnboarding, setShowWAOnboarding] = useState(false);
 
-  useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || '';
-    fetch(`${apiUrl}/api/config`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then(config => {
-        if (!config.supabaseUrl || !config.supabaseKey) {
-          throw new Error("Invalid configuration received from server.");
-        }
-        const client = createClient(config.supabaseUrl, config.supabaseKey);
-        setSbClient(client);
-        fetchEmployees(client);
-      })
-      .catch(err => {
-        console.error("❌ Failed to initialize Supabase:", err.message);
-        alert("⚠️ Backend connection failed. Please ensure the server is running.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const fetchEmployees = async (client) => {
-    if (!client) return;
+  const fetchEmployees = async () => {
     try {
-      const { data, error } = await client.from('employees').select('*');
-      if (error) throw error;
+      const res = await fetch('/api/employees');
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
       setEmployees(data || []);
     } catch (err) {
-      console.error("❌ Error fetching employees:", err.message);
+      console.error("❌ Failed to fetch employees:", err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
   const handleAddEmployee = async (formData) => {
-    if (!sbClient) {
-      alert("❌ Supabase client not initialized. Please refresh the page.");
-      return;
-    }
+    try {
+      // Map the form fields to the database columns
+      const payload = {
+        Name: formData.Name,
+        Role: formData.Role,
+        Mobile: formData.mobileNumber, 
+        contact: formData.mobileNumber,
+        managedBy: formData.managedBy ? parseInt(formData.managedBy) : null,
+        emailId: formData.emailId || null
+      };
 
-    // Map the form fields to the database columns
-    const payload = {
-      Name: formData.Name,
-      Role: formData.Role,
-      Mobile: formData.mobileNumber, 
-      contact: formData.mobileNumber,
-      managedBy: formData.managedBy ? parseInt(formData.managedBy) : null,
-      emailId: formData.emailId || null
-    };
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-    const { data, error } = await sbClient.from('employees').insert([payload]).select();
-    
-    if (error) {
-      console.error('❌ Insert Error:', error);
-      throw new Error(error.message);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to create employee');
+      }
+      
+      const newEmp = await res.json();
+      alert('✅ Employee Registered! Now, please scan the QR code to link their WhatsApp.');
+      fetchEmployees();
+      setShowOnboarding(false);
+      setTargetEmployeeId(newEmp?.id || null);
+      setShowWAOnboarding(true); 
+    } catch (err) {
+      console.error('❌ Add Employee Error:', err);
+      alert(`❌ Error: ${err.message}`);
     }
-    
-    const newEmp = data?.[0];
-    alert('✅ Employee Registered! Now, please scan the QR code to link their WhatsApp.');
-    fetchEmployees(sbClient);
-    setShowOnboarding(false);
-    setTargetEmployeeId(newEmp?.id || null);
-    setShowWAOnboarding(true); // Automatically show the QR scanner next
   };
 
   const handleLinkWhatsApp = (empId) => {
@@ -95,7 +82,6 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar 
           onAddEmployee={() => setShowOnboarding(true)} 
-          onWhatsAppOnboarding={() => setShowWAOnboarding(true)}
         />
         
         <main className="flex-1 flex overflow-hidden">
