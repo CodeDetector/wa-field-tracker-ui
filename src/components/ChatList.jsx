@@ -34,7 +34,7 @@ export default function ChatList({ employees = [], onSelectEmployee, selectedEmp
             onClick={() => onSelectEmployee?.(emp)}
             className={cn(
               "p-4 rounded-2xl border transition-all cursor-pointer group hover:shadow-premium bg-white",
-              selectedEmployeeId === emp.id ? "border-primary shadow-premium" : "border-slate-100"
+              String(selectedEmployeeId) === String(emp.id) ? "border-primary shadow-premium" : "border-slate-100"
             )}
           >
             <div className="flex justify-between items-start mb-2">

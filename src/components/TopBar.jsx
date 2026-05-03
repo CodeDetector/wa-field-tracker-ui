@@ -1,7 +1,7 @@
 import React from 'react';
-import { Search, Bell, Command, ChevronDown } from 'lucide-react';
+import { Search, Bell, Command, ChevronDown, Bot } from 'lucide-react';
 
-export default function TopBar({ onAddEmployee }) {
+export default function TopBar({ onAddEmployee, onToggleAgent }) {
   return (
     <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-8 z-20">
       <div className="flex-1 max-w-xl">
@@ -19,6 +19,35 @@ export default function TopBar({ onAddEmployee }) {
       </div>
 
       <div className="flex items-center gap-6">
+        <label className="bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-2 cursor-pointer">
+          <Bot size={16} /> Upload Business Doc
+          <input 
+            type="file" 
+            className="hidden" 
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              alert(`Uploading ${file.name} to the backend agent for parsing...`);
+              const formData = new FormData();
+              formData.append('document', file);
+              try {
+                const res = await fetch('/api/agent/upload', {
+                  method: 'POST',
+                  body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                  alert(`✅ The agent parsed ${file.name} and updated the knowledge map!`);
+                } else {
+                  alert(`❌ Error: ${data.error}`);
+                }
+              } catch (err) {
+                alert(`❌ Upload failed: ${err.message}`);
+              }
+            }}
+          />
+        </label>
+
         <button 
           onClick={onAddEmployee}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-2"
