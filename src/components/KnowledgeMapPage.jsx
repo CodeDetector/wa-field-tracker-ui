@@ -4,10 +4,11 @@ import * as d3 from 'd3';
 import {
   RefreshCw, X, ArrowRight, ArrowLeft, Check,
   MessageCircle, Network, MessageSquare, Mail, Building2, Users,
-  Plus, Minus, Maximize2,
+  Plus, Minus, Maximize2, UserCircle,
 } from 'lucide-react';
 import { NODE_COLORS, NODE_RADIUS } from '../constants/knowledgeMap';
 import KnowledgeMapChat from './KnowledgeMapChat';
+import BusinessProfileModal from './BusinessProfileModal';
 
 // ─── Channel definitions ──────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function ChannelChip({ channel, active, onToggle }) {
 
 // ─── Channel header bar ───────────────────────────────────────────────────────
 
-function ChannelBar({ selectedIds, graphData, loading, toggle, onSelectAll, onSelectNone, onRefresh }) {
+function ChannelBar({ selectedIds, graphData, loading, toggle, onSelectAll, onSelectNone, onRefresh, onEditProfile, profileSet }) {
   const statLabel = loading
     ? 'Loading…'
     : selectedIds.length === 0
@@ -113,6 +114,25 @@ function ChannelBar({ selectedIds, graphData, loading, toggle, onSelectAll, onSe
                        transition-colors disabled:opacity-30"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          </button>
+
+          <div className="w-px h-4 bg-slate-200 mx-0.5" />
+
+          {/* Profile button */}
+          <button
+            onClick={onEditProfile}
+            title="Edit business profile"
+            className={[
+              'relative p-1.5 rounded-lg transition-colors',
+              profileSet
+                ? 'text-indigo-600 hover:bg-indigo-50'
+                : 'text-amber-500 hover:bg-amber-50',
+            ].join(' ')}
+          >
+            <UserCircle size={14} />
+            {!profileSet && (
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
+            )}
           </button>
         </div>
       </div>
@@ -498,7 +518,17 @@ export default function KnowledgeMapPage() {
   const [error, setError]                       = useState(null);
   const [showChat, setShowChat]                 = useState(false);
   const [zoomScale, setZoomScale]               = useState(1);
+  const [showProfile, setShowProfile]           = useState(false);
+  const [profileSet, setProfileSet]             = useState(false);
   const graphRef                                = useRef(null);
+
+  // Check whether a profile has been filled in
+  useEffect(() => {
+    fetch('/api/business/profile')
+      .then(r => r.json())
+      .then(p => setProfileSet(!!(p?.owner?.name || p?.business?.name)))
+      .catch(() => {});
+  }, []);
 
   const channelKey = [...selectedIds].sort().join(',');
 
@@ -545,6 +575,8 @@ export default function KnowledgeMapPage() {
           onSelectAll={selectAll}
           onSelectNone={selectNone}
           onRefresh={handleRefresh}
+          onEditProfile={() => setShowProfile(true)}
+          profileSet={profileSet}
         />
 
         {/* Graph canvas */}
@@ -675,6 +707,20 @@ export default function KnowledgeMapPage() {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* ── Business profile modal ────────────────────────────────────────── */}
+      {showProfile && (
+        <BusinessProfileModal
+          onClose={() => {
+            setShowProfile(false);
+            // Re-check whether profile is now filled
+            fetch('/api/business/profile')
+              .then(r => r.json())
+              .then(p => setProfileSet(!!(p?.owner?.name || p?.business?.name)))
+              .catch(() => {});
+          }}
+        />
+      )}
 
       {/* ── Chat side panel ───────────────────────────────────────────────── */}
       <AnimatePresence>
