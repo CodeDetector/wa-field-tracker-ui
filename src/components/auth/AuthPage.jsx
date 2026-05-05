@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn } from 'lucide-react';
+import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Sun, Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const PERSONAL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'protonmail.com'];
 
@@ -11,10 +12,10 @@ function isWorkEmail(email) {
 function InputField({ label, type, value, onChange, placeholder, icon: Icon, rightSlot }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{label}</label>
+      <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</label>
       <div className="relative group">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-          <Icon size={16} />
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors z-10">
+          <Icon size={15} />
         </div>
         <input
           type={type}
@@ -22,19 +23,19 @@ function InputField({ label, type, value, onChange, placeholder, icon: Icon, rig
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           required
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-10 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300
-                     focus:bg-white transition-all placeholder:text-slate-300"
+          className="w-full glass-input rounded-xl py-3 pl-10 pr-10 text-sm text-slate-700 dark:text-slate-200
+                     focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400/40
+                     transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
         />
         {rightSlot && (
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2">{rightSlot}</div>
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-10">{rightSlot}</div>
         )}
       </div>
     </div>
   );
 }
 
-export default function AuthPage({ onAuth }) {
+export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,27 +103,64 @@ export default function AuthPage({ onAuth }) {
 
   const toggleEye = (
     <button type="button" onClick={() => setShowPassword(p => !p)}
-      className="text-slate-400 hover:text-slate-600 transition-colors">
-      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+      className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Dark mode toggle */}
+      <button
+        onClick={onToggleDark}
+        className="fixed top-4 right-4 p-2.5 glass rounded-xl text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all z-50"
+      >
+        {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+      </button>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-sm"
+      >
         {/* Brand */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-600/30 mb-4">
-            <Zap className="text-white" size={28} fill="white" />
-          </div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Omni-Brain</h1>
-          <p className="text-sm text-slate-400 mt-1">Business Intelligence Platform</p>
+        <div className="flex flex-col items-center mb-7">
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+            className="glass-sheen w-14 h-14 bg-indigo-600/85 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-600/30 mb-4 border border-indigo-500/40"
+          >
+            <Zap className="text-white" size={26} fill="white" />
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight"
+          >
+            Omni-Brain
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+            className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium"
+          >
+            Business Intelligence Platform
+          </motion.p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="glass rounded-3xl overflow-hidden glass-sheen"
+        >
           {/* Tab switcher */}
-          <div className="flex border-b border-slate-100">
+          <div className="flex border-b border-white/30 dark:border-white/5">
             {[
               { id: 'login',    label: 'Log In',   Icon: LogIn    },
               { id: 'register', label: 'Register',  Icon: UserPlus },
@@ -131,88 +169,119 @@ export default function AuthPage({ onAuth }) {
                 key={id}
                 onClick={() => { setMode(id); reset(); }}
                 className={[
-                  'flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold transition-colors',
+                  'flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold transition-all relative',
                   mode === id
-                    ? 'text-indigo-600 border-b-2 border-indigo-600 -mb-px'
-                    : 'text-slate-400 hover:text-slate-600',
+                    ? 'text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300',
                 ].join(' ')}
               >
-                <Icon size={15} /> {label}
+                <Icon size={14} /> {label}
+                {mode === id && (
+                  <motion.div
+                    layoutId="auth-tab-indicator"
+                    className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full"
+                  />
+                )}
               </button>
             ))}
           </div>
 
-          <form
-            onSubmit={mode === 'login' ? handleLogin : handleRegister}
-            className="p-8 space-y-5"
-          >
-            {/* Feedback banners */}
-            {error && (
-              <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium">
-                {error}
-              </div>
-            )}
-            {info && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium">
-                {info}
-              </div>
-            )}
-
-            <InputField
-              label="Work Email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              placeholder="you@yourcompany.com"
-              icon={Mail}
-            />
-
-            <InputField
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={setPassword}
-              placeholder="Min. 8 characters"
-              icon={Lock}
-              rightSlot={toggleEye}
-            />
-
-            {mode === 'register' && (
-              <InputField
-                label="Confirm Password"
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                placeholder="Repeat your password"
-                icon={Lock}
-              />
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl
-                         shadow-lg shadow-indigo-600/20 transition-all active:scale-95 disabled:opacity-50
-                         disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+          <AnimatePresence mode="wait">
+            <motion.form
+              key={mode}
+              initial={{ opacity: 0, x: mode === 'login' ? -12 : 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: mode === 'login' ? 12 : -12 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              onSubmit={mode === 'login' ? handleLogin : handleRegister}
+              className="p-7 space-y-4"
             >
-              {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  {mode === 'login' ? 'Log In' : 'Create Account'}
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
+              {/* Feedback banners */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-3 glass rounded-xl text-sm text-red-600 dark:text-red-400 font-medium border-red-400/30"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+                {info && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-3 glass rounded-xl text-sm text-emerald-600 dark:text-emerald-400 font-medium border-emerald-400/30"
+                  >
+                    {info}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-          {mode === 'register' && (
-            <p className="text-center text-xs text-slate-400 pb-6 px-8">
-              Use your company email address. Personal emails (Gmail, Yahoo, etc.) are not permitted.
-            </p>
-          )}
-        </div>
-      </div>
+              <InputField
+                label="Work Email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="you@yourcompany.com"
+                icon={Mail}
+              />
+
+              <InputField
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={setPassword}
+                placeholder="Min. 8 characters"
+                icon={Lock}
+                rightSlot={toggleEye}
+              />
+
+              {mode === 'register' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <InputField
+                    label="Confirm Password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    placeholder="Repeat your password"
+                    icon={Lock}
+                  />
+                </motion.div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl
+                           shadow-lg shadow-indigo-600/25 transition-all active:scale-95 disabled:opacity-50
+                           disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-1 border border-indigo-500/50"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {mode === 'login' ? 'Log In' : 'Create Account'}
+                    <ArrowRight size={15} />
+                  </>
+                )}
+              </button>
+
+              {mode === 'register' && (
+                <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 pt-1">
+                  Use your company email. Personal emails are not permitted.
+                </p>
+              )}
+            </motion.form>
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // Auth / Setup / Enrichment
 import AuthPage          from './components/auth/AuthPage';
@@ -17,11 +18,78 @@ import DetailPanel       from './components/DetailPanel';
 import BusinessAgentChat from './components/BusinessAgentChat';
 import KnowledgeMapPage  from './components/KnowledgeMapPage';
 
-// Admin modals (unchanged — used by admins for adding other employees)
-import OnboardingForm     from './components/onboarding/OnboardingForm';
+// Admin modals
 import WhatsAppOnboarding from './components/onboarding/WhatsAppOnboarding';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Background mesh ───────────────────────────────────────────────────────────
+
+function BackgroundMesh({ darkMode }) {
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      <div className={`absolute inset-0 transition-colors duration-700 ${
+        darkMode ? 'bg-[#060b1a]' : 'bg-gradient-to-br from-[#eef2ff] via-[#f0f9ff] to-[#faf5ff]'
+      }`} />
+
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 720, height: 720,
+          top: '-15%', right: '5%',
+          background: darkMode
+            ? 'radial-gradient(circle, rgba(99,102,241,0.32) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+        }}
+        animate={{ x: [0, 50, -30, 0], y: [0, -40, 25, 0], scale: [1, 1.06, 0.95, 1] }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 600, height: 600,
+          bottom: '-12%', left: '-5%',
+          background: darkMode
+            ? 'radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(139,92,246,0.14) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+        }}
+        animate={{ x: [0, -40, 30, 0], y: [0, 35, -20, 0], scale: [1, 1.08, 0.92, 1] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut', delay: 4 }}
+      />
+
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 440, height: 440,
+          top: '38%', left: '32%',
+          background: darkMode
+            ? 'radial-gradient(circle, rgba(59,130,246,0.22) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(59,130,246,0.11) 0%, transparent 70%)',
+          filter: 'blur(70px)',
+        }}
+        animate={{ x: [0, 25, -20, 0], y: [0, -22, 30, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 8 }}
+      />
+
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 320, height: 320,
+          top: '15%', left: '18%',
+          background: darkMode
+            ? 'radial-gradient(circle, rgba(20,184,166,0.18) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(20,184,166,0.09) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }}
+        animate={{ x: [0, -18, 22, 0], y: [0, 28, -15, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+      />
+    </div>
+  );
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function isWaConnected(employee) {
   if (!employee) return false;
@@ -36,12 +104,7 @@ function needsSetup(employee) {
   return { needs: false, step: null };
 }
 
-// ─── App states ───────────────────────────────────────────────────────────────
-// loading   → checking stored token
-// auth      → no session, show AuthPage
-// setup     → logged in but setup incomplete, show SetupFlow
-// enriching → first login after setup complete, show EnrichmentScreen
-// ready     → fully set up, show dashboard
+// ─── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [appState,        setAppState]       = useState('loading');
@@ -51,15 +114,28 @@ export default function App() {
   const [setupStep,       setSetupStep]      = useState(1);
   const [waConnected,     setWaConnected]    = useState(false);
 
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('omnibrain_dark') === 'true';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('omnibrain_dark', String(darkMode));
+  }, [darkMode]);
+
   // Dashboard state
   const [currentPage,      setCurrentPage]     = useState('messages');
-  const [employees,        setEmployees]        = useState([]);
   const [targetEmployeeId, setTargetEmployeeId] = useState(null);
-  const [showOnboarding,   setShowOnboarding]   = useState(false);
   const [showWAOnboarding, setShowWAOnboarding] = useState(false);
   const [showAgent,        setShowAgent]        = useState(false);
 
-  // ── Session bootstrap ──────────────────────────────────────────────────────
+  // ── Session bootstrap ────────────────────────────────────────────────────────
 
   const transitionToReady = useCallback((employee, skipEnrich = false) => {
     setWaConnected(isWaConnected(employee));
@@ -102,7 +178,7 @@ export default function App() {
     bootstrap(token);
   }, [bootstrap]);
 
-  // ── Auth handlers ──────────────────────────────────────────────────────────
+  // ── Auth handlers ────────────────────────────────────────────────────────────
 
   const clearAuth = () => {
     localStorage.removeItem('omnibrain_auth_token');
@@ -128,7 +204,6 @@ export default function App() {
     }
   };
 
-  // SetupFlow calls this when both steps complete (or WA is skipped)
   const handleSetupComplete = async (employeeId, waWasConnected) => {
     const token = localStorage.getItem('omnibrain_auth_token');
     let employee = sessionEmployee;
@@ -143,19 +218,17 @@ export default function App() {
       } catch { /* use existing */ }
     }
     setWaConnected(waWasConnected && isWaConnected(employee));
-    // Always enrich after setup completes
     sessionStorage.removeItem('omnibrain_enriched');
     transitionToReady(employee, false);
   };
 
-  // EnrichmentScreen calls this when all steps finish
   const handleEnrichmentComplete = () => {
     sessionStorage.setItem('omnibrain_enriched', 'true');
     setAppState('ready');
     fetchEmployees();
   };
 
-  // ── WA connect from TopBar ─────────────────────────────────────────────────
+  // ── WA connect from TopBar ───────────────────────────────────────────────────
 
   const handleTopBarConnectWA = () => {
     if (!sessionEmployee) return;
@@ -165,99 +238,72 @@ export default function App() {
 
   const handleWAModalClose = () => {
     setShowWAOnboarding(false);
-    // Refresh WA state in case user connected during the modal
     if (sessionEmployee) {
       const nowConnected = isWaConnected(sessionEmployee);
       setWaConnected(nowConnected);
     }
   };
 
-  // ── Dashboard helpers ──────────────────────────────────────────────────────
+  // ── Dashboard helpers ────────────────────────────────────────────────────────
 
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch('/api/employees');
-      if (!res.ok) return;
-      setEmployees(await res.json() || []);
-    } catch { /* silent */ }
-  };
-
-  useEffect(() => {
-    if (appState === 'ready') fetchEmployees();
-  }, [appState]);
-
-  const handleAddEmployee = async (formData) => {
-    const payload = {
-      Name:      formData.Name,
-      Role:      formData.Role,
-      Mobile:    formData.mobileNumber,
-      contact:   formData.mobileNumber,
-      managedBy: formData.managedBy ? String(formData.managedBy) : null,
-      emailId:   formData.emailId || null,
-    };
-    const res = await fetch('/api/employees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create employee');
-    }
-    const newEmp = await res.json();
-    fetchEmployees();
-    setShowOnboarding(false);
-    setTargetEmployeeId(newEmp?.id || null);
-    setShowWAOnboarding(true);
-  };
-
-  const handleLinkWhatsApp = empId => {
-    setTargetEmployeeId(empId);
-    setShowWAOnboarding(true);
-  };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   if (appState === 'loading') {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-600/30">
-            <Zap className="text-white" size={24} fill="white" />
+      <>
+        <BackgroundMesh darkMode={darkMode} />
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="glass w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl glass-sheen">
+              <Zap className="text-indigo-600 dark:text-indigo-400" size={28} fill="currentColor" />
+            </div>
+            <div className="w-5 h-5 border-2 border-indigo-300 dark:border-indigo-700 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
           </div>
-          <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
         </div>
-      </div>
+      </>
     );
   }
 
   if (appState === 'auth') {
-    return <AuthPage onAuth={handleAuth} />;
+    return (
+      <>
+        <BackgroundMesh darkMode={darkMode} />
+        <AuthPage onAuth={handleAuth} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+      </>
+    );
   }
 
   if (appState === 'setup') {
     return (
-      <SetupFlow
-        authEmail={sessionUser?.email}
-        initialStep={setupStep}
-        existingEmployeeId={sessionEmployee?.id || null}
-        onComplete={handleSetupComplete}
-      />
+      <>
+        <BackgroundMesh darkMode={darkMode} />
+        <SetupFlow
+          authEmail={sessionUser?.email}
+          initialStep={setupStep}
+          existingEmployeeId={sessionEmployee?.id || null}
+          onComplete={handleSetupComplete}
+        />
+      </>
     );
   }
 
   if (appState === 'enriching') {
     return (
-      <EnrichmentScreen
-        employee={sessionEmployee}
-        onComplete={handleEnrichmentComplete}
-      />
+      <>
+        <BackgroundMesh darkMode={darkMode} />
+        <EnrichmentScreen
+          employee={sessionEmployee}
+          onComplete={handleEnrichmentComplete}
+        />
+      </>
     );
   }
 
-  // ── Dashboard (appState === 'ready') ───────────────────────────────────────
+  // ── Dashboard ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans">
+    <div className="flex h-screen w-full overflow-hidden font-sans">
+      <BackgroundMesh darkMode={darkMode} />
+
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -266,9 +312,10 @@ export default function App() {
             currentUser={sessionEmployee}
             waConnected={waConnected}
             onConnectWhatsApp={handleTopBarConnectWA}
-            onAddEmployee={() => setShowOnboarding(true)}
             onToggleAgent={() => setShowAgent(prev => !prev)}
             onLogout={clearAuth}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(d => !d)}
           />
         )}
 
@@ -277,16 +324,11 @@ export default function App() {
             <KnowledgeMapPage />
           ) : (
             <>
-              <ChatList
-                employees={employees}
-                selectedEmployeeId={targetEmployeeId}
-                onSelectEmployee={emp => setTargetEmployeeId(emp.id)}
-                onLinkWhatsApp={handleLinkWhatsApp}
-              />
+              <ChatList sessionEmployeeId={sessionEmployee?.id} />
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex-1 flex overflow-hidden">
                   <ChatWindow  employeeId={targetEmployeeId} />
-                  <DetailPanel employeeId={targetEmployeeId} />
+                  <DetailPanel />
                 </div>
               </div>
             </>
@@ -294,13 +336,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Admin modals */}
-      {showOnboarding && (
-        <OnboardingForm
-          onClose={() => setShowOnboarding(false)}
-          onSave={handleAddEmployee}
-        />
-      )}
       {showWAOnboarding && (
         <WhatsAppOnboarding
           employeeId={targetEmployeeId}
@@ -309,9 +344,6 @@ export default function App() {
       )}
 
       {showAgent && <BusinessAgentChat onClose={() => setShowAgent(false)} />}
-
-      <div className="fixed top-0 right-0 -z-10 w-[500px] h-[500px] bg-indigo-600/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
-      <div className="fixed bottom-0 left-0 -z-10 w-[300px] h-[300px] bg-indigo-600/5 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4" />
     </div>
   );
 }

@@ -25,24 +25,21 @@ function SidebarItem({ icon: Icon, active, badge, label, onClick }) {
     <button
       onClick={onClick}
       className={cn(
-        'relative w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-200 group',
+        'relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-200 group glass-sheen',
         active
-          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-          : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+          ? 'glass-active text-white shadow-lg'
+          : 'text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/30 dark:hover:bg-white/5'
       )}
     >
-      <Icon size={22} className="transition-transform group-hover:scale-110" />
+      <Icon size={20} className="transition-transform duration-200 group-hover:scale-110 relative z-10" />
 
-      {badge && (
-        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+      {badge && !active && (
+        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-transparent" />
       )}
 
-      {/* Tooltip */}
-      <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-800 text-white text-xs rounded-lg
-                      opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none
-                      whitespace-nowrap z-50 shadow-lg">
+      <div className="nav-tooltip">
         {label}
-        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-800" />
+        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-white/30" />
       </div>
     </button>
   );
@@ -50,16 +47,16 @@ function SidebarItem({ icon: Icon, active, badge, label, onClick }) {
 
 export default function Sidebar({ currentPage = 'messages', onNavigate }) {
   return (
-    <aside className="w-20 h-screen flex flex-col items-center py-6 bg-white border-r border-slate-100 shadow-sm z-30">
+    <aside className="w-[68px] h-screen flex flex-col items-center py-5 glass-sidebar z-30 flex-shrink-0">
       {/* Logo */}
-      <div className="mb-10">
-        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-          <Zap className="text-white" size={20} fill="white" />
+      <div className="mb-8">
+        <div className="glass-sheen w-10 h-10 bg-indigo-600/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30 border border-indigo-500/40">
+          <Zap className="text-white" size={19} fill="white" />
         </div>
       </div>
 
       {/* Nav */}
-      <div className="flex-1 flex flex-col gap-4">
+      <div className="flex-1 flex flex-col gap-3">
         {NAV_ITEMS.map(item => (
           <SidebarItem
             key={item.id}
