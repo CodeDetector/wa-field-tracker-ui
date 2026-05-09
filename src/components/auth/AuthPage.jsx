@@ -44,8 +44,10 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [needsResend, setNeedsResend] = useState(false);
+  const [resending, setResending] = useState(false);
 
-  const reset = () => { setError(''); setInfo(''); };
+  const reset = () => { setError(''); setInfo(''); setNeedsResend(false); };
 
   const handleRegister = async e => {
     e.preventDefault();
@@ -62,7 +64,25 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Registration failed.'); return; }
+      if (!res.ok) {
+        if (data.error === 'ALREADY_REGISTERED') {
+          setMode('login');
+          setPassword('');
+          setConfirmPassword('');
+          setInfo('This email is already registered — please log in.');
+        } else if (data.error === 'EMAIL_RATE_LIMIT') {
+          setError('Confirmation email already sent. Please check your inbox (and spam folder) or wait a minute before trying again.');
+        } else if (data.error === 'EMAIL_SMTP_MISCONFIGURED') {
+          setError('Account created, but the confirmation email could not be sent — the email service is not configured. Please ask your administrator to set up SMTP in the Supabase dashboard, then use "Resend confirmation email" below to try again.');
+          setMode('login');
+          setPassword('');
+          setConfirmPassword('');
+          setNeedsResend(true);
+        } else {
+          setError(data.error || 'Registration failed.');
+        }
+        return;
+      }
 
       if (data.needsConfirmation) {
         setInfo('Account created! Check your email to confirm, then log in.');
@@ -90,14 +110,54 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Login failed.'); return; }
+      if (!res.ok) {
+        if (data.error === 'EMAIL_NOT_CONFIRMED') {
+          setError(data.message || 'Please confirm your email before logging in.');
+          setNeedsResend(true);
+        } else {
+          setError(data.error || 'Login failed.');
+        }
+        return;
+      }
 
       localStorage.setItem('omnibrain_auth_token', data.session.access_token);
+      if (data.session.refresh_token) {
+        localStorage.setItem('omnibrain_refresh_token', data.session.refresh_token);
+      }
       onAuth(data.session.access_token, data.user, data.employee);
     } catch {
       setError('Network error — is the backend running?');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === 'EMAIL_RATE_LIMIT') {
+          const wait = data.secondsLeft ? ` Please wait ${data.secondsLeft}s.` : '';
+          setError(`Too many emails sent.${wait} Check your inbox or spam folder.`);
+          setNeedsResend(false);
+        } else {
+          setError(data.error || 'Failed to resend.');
+        }
+        return;
+      }
+      setNeedsResend(false);
+      setInfo('Confirmation email resent — check your inbox.');
+    } catch {
+      setError('Network error — is the backend running?');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -203,9 +263,19 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="p-3 glass rounded-xl text-sm text-red-600 dark:text-red-400 font-medium border-red-400/30"
+                    className="p-3 glass rounded-xl text-sm text-red-600 dark:text-red-400 font-medium border-red-400/30 space-y-2"
                   >
-                    {error}
+                    <p>{error}</p>
+                    {needsResend && (
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resending}
+                        className="text-xs font-bold underline underline-offset-2 text-red-700 dark:text-red-300 disabled:opacity-50"
+                      >
+                        {resending ? 'Sending…' : 'Resend confirmation email'}
+                      </button>
+                    )}
                   </motion.div>
                 )}
                 {info && (

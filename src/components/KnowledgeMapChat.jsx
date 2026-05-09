@@ -198,6 +198,7 @@ const SUGGESTIONS = [
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function KnowledgeMapChat({
+  sessionToken,
   graphNodes,
   graphEdges,
   activeChannelLabels,
@@ -222,7 +223,10 @@ export default function KnowledgeMapChat({
   // Clear server-side session memory when the panel unmounts
   useEffect(() => {
     return () => {
-      fetch(`/api/graph/chat/session/${sessionId.current}`, { method: 'DELETE' }).catch(() => {});
+      fetch(`/api/graph/chat/session/${sessionId.current}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${sessionToken}` }
+      }).catch(() => {});
     };
   }, []);
 
@@ -242,7 +246,10 @@ export default function KnowledgeMapChat({
     try {
       const res  = await fetch('/api/graph/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify({ sessionId: sessionId.current, userMessage: text, context }),
       });
       const data = await res.json();

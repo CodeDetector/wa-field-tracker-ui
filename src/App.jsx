@@ -17,6 +17,8 @@ import ChatWindow        from './components/ChatWindow';
 import DetailPanel       from './components/DetailPanel';
 import BusinessAgentChat from './components/BusinessAgentChat';
 import KnowledgeMapPage  from './components/KnowledgeMapPage';
+import WhatsAppPage      from './components/WhatsAppPage';
+import ContactsPage      from './components/ContactsPage';
 
 // Admin modals
 import WhatsAppOnboarding from './components/onboarding/WhatsAppOnboarding';
@@ -149,9 +151,29 @@ export default function App() {
 
   const bootstrap = useCallback(async (token) => {
     try {
-      const res = await fetch('/api/auth/me', {
+      let res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Token expired — try refreshing once before giving up
+      if (res.status === 401) {
+        const refreshToken = localStorage.getItem('omnibrain_refresh_token');
+        if (refreshToken) {
+          const refreshRes = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            localStorage.setItem('omnibrain_auth_token', refreshData.access_token);
+            if (refreshData.refresh_token) localStorage.setItem('omnibrain_refresh_token', refreshData.refresh_token);
+            token = refreshData.access_token;
+            res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+          }
+        }
+      }
+
       if (!res.ok) { clearAuth(); return; }
       const { user, employee } = await res.json();
       if (!user) { clearAuth(); return; }
@@ -182,6 +204,7 @@ export default function App() {
 
   const clearAuth = () => {
     localStorage.removeItem('omnibrain_auth_token');
+    localStorage.removeItem('omnibrain_refresh_token');
     sessionStorage.removeItem('omnibrain_enriched');
     setSessionToken(null);
     setSessionUser(null);
@@ -189,6 +212,7 @@ export default function App() {
     setWaConnected(false);
     setAppState('auth');
   };
+
 
   const handleAuth = (token, user, employee) => {
     setSessionToken(token);
@@ -281,6 +305,7 @@ export default function App() {
           authEmail={sessionUser?.email}
           initialStep={setupStep}
           existingEmployeeId={sessionEmployee?.id || null}
+          existingEmployee={sessionEmployee}
           onComplete={handleSetupComplete}
         />
       </>
@@ -310,6 +335,7 @@ export default function App() {
         {currentPage !== 'knowledge-map' && (
           <TopBar
             currentUser={sessionEmployee}
+            sessionToken={sessionToken}
             waConnected={waConnected}
             onConnectWhatsApp={handleTopBarConnectWA}
             onToggleAgent={() => setShowAgent(prev => !prev)}
@@ -321,10 +347,20 @@ export default function App() {
 
         <main className="flex-1 flex overflow-hidden">
           {currentPage === 'knowledge-map' ? (
-            <KnowledgeMapPage />
+            <KnowledgeMapPage sessionToken={sessionToken} />
+          ) : currentPage === 'whatsapp' ? (
+            <WhatsAppPage
+              sessionEmployeeId={sessionEmployee?.id}
+              sessionToken={sessionToken}
+            />
+          ) : currentPage === 'contacts' ? (
+            <ContactsPage
+              sessionEmployeeId={sessionEmployee?.id}
+              sessionToken={sessionToken}
+            />
           ) : (
             <>
-              <ChatList sessionEmployeeId={sessionEmployee?.id} />
+              <ChatList sessionEmployeeId={sessionEmployee?.id} sessionToken={sessionToken} />
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex-1 flex overflow-hidden">
                   <ChatWindow  employeeId={targetEmployeeId} />
@@ -339,11 +375,12 @@ export default function App() {
       {showWAOnboarding && (
         <WhatsAppOnboarding
           employeeId={targetEmployeeId}
+          sessionToken={sessionToken}
           onClose={handleWAModalClose}
         />
       )}
 
-      {showAgent && <BusinessAgentChat onClose={() => setShowAgent(false)} />}
+      {showAgent && <BusinessAgentChat sessionToken={sessionToken} onClose={() => setShowAgent(false)} />}
     </div>
   );
 }

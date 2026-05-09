@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Mail, Brain, Network, Check } from 'lucide-react';
+import { Zap, Mail, Brain, Network, Check, Smartphone } from 'lucide-react';
 
 const STEPS = [
-  { icon: Zap,     label: 'Connecting to your workspace'            },
-  { icon: Mail,    label: 'Loading your email history'              },
-  { icon: Brain,   label: 'Analysing communications with Gemini AI' },
-  { icon: Network, label: 'Building your knowledge graph'           },
+  { icon: Zap,         label: 'Connecting to your workspace'            },
+  { icon: Mail,        label: 'Loading your email history'              },
+  { icon: Smartphone,  label: 'Loading your WhatsApp history'           },
+  { icon: Brain,       label: 'Analysing communications with Gemini AI' },
+  { icon: Network,     label: 'Building your knowledge graph'           },
 ];
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -20,37 +21,50 @@ export default function EnrichmentScreen({ employee, onComplete }) {
     let cancelled = false;
 
     const run = async () => {
-      // Step 0 — instant workspace connect
+      // Step 0 — workspace connect
       setActiveStep(0);
       await delay(700);
       if (cancelled) return;
       markDone(0);
 
-      // Step 1 — loading email history
+      // Step 1 — email history (visual only, data fetched in parallel below)
       setActiveStep(1);
-      await delay(900);
+      await delay(800);
       if (cancelled) return;
       markDone(1);
 
-      // Step 2 + 3 — fire enrichment API (steps complete as it progresses)
+      // Step 2 — WhatsApp history (visual only)
       setActiveStep(2);
-      const enrichPromise = fetch('/api/graph/enrich', {
+
+      // Fire both enrichment calls in parallel now
+      const emailEnrich = fetch('/api/graph/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId: employee?.id, employeeName: employee?.Name }),
-      }).catch(() => null); // best-effort
+      }).catch(() => null);
 
-      // Advance to step 3 after a short wait so the UI doesn't freeze on step 2
-      await delay(1500);
+      const waEnrich = fetch('/api/graph/enrich-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: employee?.id, employeeName: employee?.Name }),
+      }).catch(() => null);
+
+      await delay(800);
       if (cancelled) return;
       markDone(2);
-      setActiveStep(3);
 
-      // Wait for the enrich call to actually finish before calling onComplete
-      await enrichPromise;
-      await delay(600);
+      // Step 3 — AI analysis (in progress while calls run)
+      setActiveStep(3);
+      await delay(1200);
       if (cancelled) return;
       markDone(3);
+
+      // Step 4 — building graph — wait for both calls to finish
+      setActiveStep(4);
+      await Promise.all([emailEnrich, waEnrich]);
+      await delay(500);
+      if (cancelled) return;
+      markDone(4);
 
       await delay(400);
       if (!cancelled) onComplete();
@@ -81,23 +95,21 @@ export default function EnrichmentScreen({ employee, onComplete }) {
           {STEPS.map((step, i) => {
             const done   = doneSteps.includes(i);
             const active = activeStep === i && !done;
-            const idle   = !done && !active;
 
             return (
               <div
                 key={i}
                 className={[
                   'flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-500',
-                  done   ? 'bg-emerald-500/15 border-emerald-500/30'  :
-                  active ? 'bg-white/10 border-white/20'              :
+                  done   ? 'bg-emerald-500/15 border-emerald-500/30' :
+                  active ? 'bg-white/10 border-white/20'             :
                            'bg-white/5  border-white/10 opacity-40',
                 ].join(' ')}
               >
-                {/* Icon slot */}
                 <div className={[
                   'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300',
-                  done   ? 'bg-emerald-500'    :
-                  active ? 'bg-indigo-500'      :
+                  done   ? 'bg-emerald-500' :
+                  active ? 'bg-indigo-500'  :
                            'bg-white/10',
                 ].join(' ')}>
                   {done ? (
@@ -118,7 +130,6 @@ export default function EnrichmentScreen({ employee, onComplete }) {
                   {step.label}
                 </span>
 
-                {/* Right pulse for active */}
                 {active && (
                   <div className="ml-auto w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />
                 )}
@@ -131,7 +142,7 @@ export default function EnrichmentScreen({ employee, onComplete }) {
         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-indigo-400 to-emerald-400 rounded-full transition-all duration-700 ease-out"
-            style={{ width: `${((doneSteps.length) / STEPS.length) * 100}%` }}
+            style={{ width: `${(doneSteps.length / STEPS.length) * 100}%` }}
           />
         </div>
         <p className="text-white/30 text-xs mt-3">

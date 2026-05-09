@@ -187,7 +187,7 @@ const TABS = [
   { id: 'email',     label: 'Email'     },
 ];
 
-export default function ChatList({ sessionEmployeeId }) {
+export default function ChatList({ sessionEmployeeId, sessionToken }) {
   const [tab,         setTab]         = useState('all');
   const [data,        setData]        = useState({ emails: [], commitments: [] });
   const [loading,     setLoading]     = useState(false);
@@ -198,7 +198,9 @@ export default function ChatList({ sessionEmployeeId }) {
     if (!sessionEmployeeId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/followups?employeeId=${sessionEmployeeId}`);
+      const res = await fetch(`/api/followups?employeeId=${sessionEmployeeId}`, {
+        headers: { Authorization: `Bearer ${sessionToken}` }
+      });
       if (res.ok) {
         setData(await res.json());
         setLastFetched(new Date());

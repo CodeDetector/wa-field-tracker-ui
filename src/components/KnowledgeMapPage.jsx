@@ -509,7 +509,7 @@ function EmptyState() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function KnowledgeMapPage() {
+export default function KnowledgeMapPage({ sessionToken }) {
   const [selectedIds, setSelectedIds]           = useState([]);
   const [graphData, setGraphData]               = useState({ nodes: [], edges: [] });
   const [selectedNode, setSelectedNode]         = useState(null);
@@ -522,13 +522,14 @@ export default function KnowledgeMapPage() {
   const [profileSet, setProfileSet]             = useState(false);
   const graphRef                                = useRef(null);
 
-  // Check whether a profile has been filled in
   useEffect(() => {
-    fetch('/api/business/profile')
+    fetch('/api/business/profile', {
+      headers: { Authorization: `Bearer ${sessionToken}` }
+    })
       .then(r => r.json())
       .then(p => setProfileSet(!!(p?.owner?.name || p?.business?.name)))
       .catch(() => {});
-  }, []);
+  }, [sessionToken]);
 
   const channelKey = [...selectedIds].sort().join(',');
 
@@ -536,7 +537,9 @@ export default function KnowledgeMapPage() {
     if (!key) { setGraphData({ nodes: [], edges: [] }); return; }
     let alive = true;
     setLoading(true); setError(null);
-    fetch(`/api/graph/channels?channels=${key}`)
+    fetch(`/api/graph/channels?channels=${key}`, {
+      headers: { Authorization: `Bearer ${sessionToken}` }
+    })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(d  => { if (alive) setGraphData({ nodes: d.nodes || [], edges: d.edges || [] }); })
       .catch(() => { if (alive) setError('Could not reach the server.'); })
@@ -739,6 +742,7 @@ export default function KnowledgeMapPage() {
                             bg-white border border-slate-100
                             flex flex-col overflow-hidden">
               <KnowledgeMapChat
+                sessionToken={sessionToken}
                 graphNodes={graphData.nodes}
                 graphEdges={graphData.edges}
                 activeChannelLabels={activeChannelLabels}

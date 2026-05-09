@@ -7,7 +7,7 @@ function initials(name) {
 }
 
 export default function TopBar({
-  currentUser, waConnected,
+  currentUser, sessionToken, waConnected,
   onConnectWhatsApp, onToggleAgent, onLogout,
   darkMode, onToggleDark,
 }) {
@@ -49,7 +49,11 @@ export default function TopBar({
               const formData = new FormData();
               formData.append('document', file);
               try {
-                const res  = await fetch('/api/agent/upload', { method: 'POST', body: formData });
+                const res  = await fetch('/api/agent/upload', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${sessionToken}` },
+                  body: formData
+                });
                 const data = await res.json();
                 alert(data.success ? `✅ Parsed ${file.name} and updated knowledge map!` : `❌ ${data.error}`);
               } catch (err) {

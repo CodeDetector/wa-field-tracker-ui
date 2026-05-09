@@ -3,7 +3,7 @@ import { Bot, X, Send, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 
-export default function BusinessAgentChat({ onClose }) {
+export default function BusinessAgentChat({ sessionToken, onClose }) {
   const [messages, setMessages] = useState([
     { role: 'assistant', text: "Hello! I am your Omni-Brain Business Agent. I have access to the business knowledge map. How can I help you today?" }
   ]);
@@ -21,7 +21,10 @@ export default function BusinessAgentChat({ onClose }) {
     try {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify({ prompt: userMessage })
       });
       
@@ -86,6 +89,7 @@ export default function BusinessAgentChat({ onClose }) {
               try {
                 const res = await fetch('/api/agent/upload', {
                   method: 'POST',
+                  headers: { Authorization: `Bearer ${sessionToken}` },
                   body: formData
                 });
                 const data = await res.json();

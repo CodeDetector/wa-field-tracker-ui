@@ -7,16 +7,20 @@ import {
   Mail,
   LayoutDashboard,
   Zap,
-  HelpCircle
+  HelpCircle,
+  Smartphone,
+  Link2,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const NAV_ITEMS = [
   { id: 'dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
   { id: 'messages',      icon: MessageSquare,   label: 'Messages',      badge: true },
+  { id: 'whatsapp',      icon: Smartphone,      label: 'WhatsApp' },
   { id: 'users',         icon: Users,           label: 'Team' },
   { id: 'mail',          icon: Mail,            label: 'Email' },
   { id: 'knowledge-map', icon: BarChart3,       label: 'Knowledge Map' },
+  { id: 'contacts',      icon: Link2,           label: 'Contacts' },
   { id: 'settings',      icon: Settings,        label: 'Settings' },
 ];
 
