@@ -23,6 +23,9 @@ import ContactsPage      from './components/ContactsPage';
 // Admin modals
 import WhatsAppOnboarding from './components/onboarding/WhatsAppOnboarding';
 
+// Business onboarding wizard (mandatory 4-phase flow)
+import BusinessOnboardingWizard from './components/onboarding/BusinessOnboardingWizard';
+
 // ─── Background mesh ───────────────────────────────────────────────────────────
 
 function BackgroundMesh({ darkMode }) {
@@ -98,11 +101,23 @@ function isWaConnected(employee) {
   return !!localStorage.getItem(`omnibrain_wa_done_${employee.id}`);
 }
 
-function needsSetup(employee) {
-  if (!employee || !employee.Mobile) return { needs: true, step: 1 };
+// Business onboarding gate — checks the 4 mandatory phases.
+// Returns the phase the user should resume at (1-4), or null when complete.
+function businessOnboardingPhase(onboarding) {
+  if (!onboarding) return 1;
+  if (!onboarding.hasBusiness)         return 1;
+  if (onboarding.supplierCount === 0)  return 2;
+  if (onboarding.clientCount === 0)    return 3;
+  if (!onboarding.hasAdmin)            return 4;
+  return null;
+}
+
+// Personal setup gate — runs after business onboarding (WA + IMAP).
+function needsPersonalSetup(employee) {
+  if (!employee) return { needs: true, step: 1 };
   const done    = localStorage.getItem(`omnibrain_wa_done_${employee.id}`);
   const skipped = localStorage.getItem(`omnibrain_wa_skipped_${employee.id}`);
-  if (!done && !skipped) return { needs: true, step: 2 };
+  if (!done && !skipped) return { needs: true, step: 1 };
   return { needs: false, step: null };
 }
 
@@ -115,6 +130,7 @@ export default function App() {
   const [sessionEmployee, setSessionEmployee] = useState(null);
   const [setupStep,       setSetupStep]      = useState(1);
   const [waConnected,     setWaConnected]    = useState(false);
+  const [businessPhase,   setBusinessPhase]  = useState(1);
 
   // Dark mode
   const [darkMode, setDarkMode] = useState(() => {
@@ -175,14 +191,23 @@ export default function App() {
       }
 
       if (!res.ok) { clearAuth(); return; }
-      const { user, employee } = await res.json();
+      const { user, employee, onboarding: ob } = await res.json();
       if (!user) { clearAuth(); return; }
 
       setSessionToken(token);
       setSessionUser(user);
       setSessionEmployee(employee);
 
-      const setup = needsSetup(employee);
+      // 1. Business onboarding gate (4 mandatory phases)
+      const phase = businessOnboardingPhase(ob);
+      if (phase !== null) {
+        setBusinessPhase(phase);
+        setAppState('business-onboarding');
+        return;
+      }
+
+      // 2. Personal setup gate (WA + IMAP)
+      const setup = needsPersonalSetup(employee);
       if (setup.needs) {
         setSetupStep(setup.step);
         setAppState('setup');
@@ -214,18 +239,18 @@ export default function App() {
   };
 
 
-  const handleAuth = (token, user, employee) => {
-    setSessionToken(token);
-    setSessionUser(user);
-    setSessionEmployee(employee);
+  const handleAuth = (token, _user, _employee) => {
+    // Re-bootstrap so we get the freshest onboarding flags from /api/auth/me
+    localStorage.setItem('omnibrain_auth_token', token);
+    setAppState('loading');
+    bootstrap(token);
+  };
 
-    const setup = needsSetup(employee);
-    if (setup.needs) {
-      setSetupStep(setup.step);
-      setAppState('setup');
-    } else {
-      transitionToReady(employee);
-    }
+  const handleBusinessOnboardingComplete = async () => {
+    const token = localStorage.getItem('omnibrain_auth_token');
+    if (!token) { clearAuth(); return; }
+    setAppState('loading');
+    await bootstrap(token);
   };
 
   const handleSetupComplete = async (employeeId, waWasConnected) => {
@@ -293,6 +318,19 @@ export default function App() {
       <>
         <BackgroundMesh darkMode={darkMode} />
         <AuthPage onAuth={handleAuth} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+      </>
+    );
+  }
+
+  if (appState === 'business-onboarding') {
+    return (
+      <>
+        <BackgroundMesh darkMode={darkMode} />
+        <BusinessOnboardingWizard
+          authEmail={sessionUser?.email}
+          initialPhase={businessPhase}
+          onComplete={handleBusinessOnboardingComplete}
+        />
       </>
     );
   }

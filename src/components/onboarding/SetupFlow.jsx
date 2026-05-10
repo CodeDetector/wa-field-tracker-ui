@@ -1155,10 +1155,13 @@ export default function SetupFlow({ authEmail, initialStep = 1, existingEmployee
   const salesActive = confirmedSales || isSalesRole(previewRole);
   const totalSteps  = salesActive ? 4 : 3;
 
-  // Step sequence is finalised after profile submit (uses confirmedSales, not salesActive)
+  // Step sequence is finalised after profile submit (uses confirmedSales, not salesActive).
+  // NOTE: 'profile' and 'clients' are now collected in the upstream BusinessOnboardingWizard,
+  // so they're skipped here unless the caller explicitly starts at step 1 with no employee.
   const stepSequence = (() => {
-    const seq = ['profile'];
-    if (confirmedSales) seq.push('clients');
+    const seq = [];
+    if (!existingEmployeeId) seq.push('profile');
+    if (!existingEmployeeId && confirmedSales) seq.push('clients');
     seq.push('whatsapp', 'email');
     return seq;
   })();
