@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, UserPlus, LogIn, Sun, Moon, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PERSONAL_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'protonmail.com'];
@@ -36,6 +36,11 @@ function InputField({ label, type, value, onChange, placeholder, icon: Icon, rig
 }
 
 export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
+  // Has any business been registered yet? Drives the page framing:
+  //   - false → "Register your business" CTA, default tab = register, login disabled
+  //   - true  → standard login page; registration is invite-only
+  //   - null  → still loading
+  const [hasBusiness, setHasBusiness] = useState(null);
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,6 +51,17 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
   const [info, setInfo] = useState('');
   const [needsResend, setNeedsResend] = useState(false);
   const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/onboarding/has-business')
+      .then(r => r.ok ? r.json() : { hasBusiness: false })
+      .then(d => {
+        setHasBusiness(!!d.hasBusiness);
+        // When no business exists, the only sensible action is to register one.
+        if (!d.hasBusiness) setMode('register');
+      })
+      .catch(() => setHasBusiness(false));
+  }, []);
 
   const reset = () => { setError(''); setInfo(''); setNeedsResend(false); };
 
@@ -208,7 +224,9 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
             transition={{ delay: 0.3, duration: 0.4 }}
             className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium"
           >
-            Business Intelligence Platform
+            {hasBusiness === false
+              ? 'Register your business to get started'
+              : 'Business Intelligence Platform'}
           </motion.p>
         </div>
 
@@ -219,32 +237,52 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
           transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="glass rounded-3xl overflow-hidden glass-sheen"
         >
-          {/* Tab switcher */}
-          <div className="flex border-b border-white/30 dark:border-white/5">
-            {[
-              { id: 'login',    label: 'Log In',   Icon: LogIn    },
-              { id: 'register', label: 'Register',  Icon: UserPlus },
-            ].map(({ id, label, Icon }) => (
-              <button
-                key={id}
-                onClick={() => { setMode(id); reset(); }}
-                className={[
-                  'flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold transition-all relative',
-                  mode === id
-                    ? 'text-indigo-600 dark:text-indigo-400'
-                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300',
-                ].join(' ')}
-              >
-                <Icon size={14} /> {label}
-                {mode === id && (
-                  <motion.div
-                    layoutId="auth-tab-indicator"
-                    className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full"
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Tab switcher — when no business is registered, only the register flow makes sense */}
+          {hasBusiness !== false ? (
+            <div className="flex border-b border-white/30 dark:border-white/5">
+              {[
+                { id: 'login',    label: 'Log In',   Icon: LogIn    },
+                { id: 'register', label: 'Register',  Icon: UserPlus },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => { setMode(id); reset(); }}
+                  className={[
+                    'flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold transition-all relative',
+                    mode === id
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300',
+                  ].join(' ')}
+                >
+                  <Icon size={14} /> {label}
+                  {mode === id && (
+                    <motion.div
+                      layoutId="auth-tab-indicator"
+                      className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 py-4 border-b border-white/30 dark:border-white/5">
+              <Building2 size={14} className="text-indigo-600 dark:text-indigo-400" />
+              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Register Your Business</span>
+            </div>
+          )}
+
+          {/* First-admin callout */}
+          {hasBusiness === false && (
+            <div className="px-7 pt-5">
+              <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-xs text-indigo-900 dark:text-indigo-200">
+                <p className="font-bold">You're the first user.</p>
+                <p className="mt-1 opacity-80">
+                  After creating your account you'll set up your business profile, suppliers, and clients.
+                  You'll automatically become the workspace admin.
+                </p>
+              </div>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
             <motion.form
@@ -343,7 +381,12 @@ export default function AuthPage({ onAuth, darkMode, onToggleDark }) {
                 )}
               </button>
 
-              {mode === 'register' && (
+              {mode === 'register' && hasBusiness !== false && (
+                <p className="text-center text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                  Registration is invite-only. Your work email must be invited by an admin first.
+                </p>
+              )}
+              {mode === 'register' && hasBusiness === false && (
                 <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 pt-1">
                   Use your company email. Personal emails are not permitted.
                 </p>
