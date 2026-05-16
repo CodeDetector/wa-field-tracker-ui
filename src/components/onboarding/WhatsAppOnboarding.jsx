@@ -5,8 +5,10 @@ import {
   Search, Users, LogOut, User, Hash, Plus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import GroupIdentificationWizard from '../GroupIdentificationWizard';
 
 export default function WhatsAppOnboarding({ employeeId, sessionToken, onClose }) {
+  const [wizardGroup,   setWizardGroup]   = useState(null);   // { jid, name } | null
   const [phase,         setPhase]         = useState('loading');
   const [qr,            setQr]            = useState(null);
   const [error,         setError]         = useState('');
@@ -87,17 +89,20 @@ export default function WhatsAppOnboarding({ employeeId, sessionToken, onClose }
     } catch { /* silent */ }
   };
 
+  const [trackedRows, setTrackedRows] = useState([]);   // [{ jid, display_name, unresolved, totalMembers }]
+
   const loadAllData = async () => {
     setLoadingList(true);
     try {
       const [gRes, cRes, tRes] = await Promise.all([
-        fetch(`/api/whatsapp/groups?employeeId=${employeeId}`,   { headers }),
-        fetch(`/api/whatsapp/contacts?employeeId=${employeeId}`, { headers }),
-        fetch(`/api/whatsapp/tracked?employeeId=${employeeId}`,  { headers }),
+        fetch(`/api/whatsapp/groups?employeeId=${employeeId}`,             { headers }),
+        fetch(`/api/whatsapp/contacts?employeeId=${employeeId}`,           { headers }),
+        fetch(`/api/whatsapp/tracked-with-status?employeeId=${employeeId}`,{ headers }),
       ]);
       setGroups(gRes.ok   ? await gRes.json() : []);
       setContacts(cRes.ok ? await cRes.json() : []);
       const trackedData = tRes.ok ? await tRes.json() : [];
+      setTrackedRows(trackedData || []);
       setTracked(new Set((trackedData || []).map(t => t.jid)));
     } catch { /* silent */ }
     finally { setLoadingList(false); }
@@ -123,6 +128,11 @@ export default function WhatsAppOnboarding({ employeeId, sessionToken, onClose }
         isTracked ? next.delete(item.jid) : next.add(item.jid);
         return next;
       });
+      // For a freshly-tracked group, open the identification wizard.
+      // Messages will not flow until every participant has been identified.
+      if (!isTracked && chatType === 'group') {
+        setWizardGroup({ jid: item.jid, name: item.name });
+      }
     } catch (err) {
       setError(`Network error: ${err.message}`);
     } finally {
@@ -344,37 +354,67 @@ export default function WhatsAppOnboarding({ employeeId, sessionToken, onClose }
                 ) : (
                   <div className="max-h-64 overflow-y-auto space-y-1.5 pr-0.5">
                     {filtered.map(item => {
-                      const isTr   = tracked.has(item.jid);
-                      const isBusy = busyJid === item.jid;
+                      const isTr     = tracked.has(item.jid);
+                      const isBusy   = busyJid === item.jid;
+                      const status   = trackedRows.find(t => t.jid === item.jid);
+                      const pending  = status?.unresolved || 0;
                       return (
                         <div key={item.jid}
-                          onClick={() => !isBusy && toggleTracked(item, chatType)}
                           className={[
-                            'flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all',
-                            isBusy ? 'opacity-50 cursor-wait' : '',
+                            'flex items-center gap-3 p-3 rounded-xl border transition-all',
+                            isBusy ? 'opacity-50 cursor-wait' : 'cursor-pointer',
                             isTr   ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200 hover:border-slate-300',
                           ].join(' ')}>
-                          <div className={[
-                            'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
-                            isTr ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300 bg-white',
-                          ].join(' ')}>
+                          <div
+                            onClick={() => !isBusy && toggleTracked(item, chatType)}
+                            className={[
+                              'w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
+                              isTr ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300 bg-white',
+                            ].join(' ')}>
                             {isTr && <CheckCircle size={12} className="text-white" />}
                           </div>
                           {/* Avatar */}
-                          <div className={[
-                            'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold',
-                            tab === 'groups' ? 'bg-emerald-500' : 'bg-indigo-500',
-                          ].join(' ')}>
+                          <div
+                            onClick={() => !isBusy && toggleTracked(item, chatType)}
+                            className={[
+                              'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-bold',
+                              tab === 'groups' ? 'bg-emerald-500' : 'bg-indigo-500',
+                            ].join(' ')}>
                             {tab === 'groups'
                               ? <Hash size={14} />
                               : (item.name?.[0] || '?').toUpperCase()}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div
+                            onClick={() => !isBusy && toggleTracked(item, chatType)}
+                            className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-800 truncate">{item.name || item.jid}</p>
                             {tab === 'groups'
                               ? <p className="text-xs text-slate-400">{item.participants} participants</p>
                               : <p className="text-xs text-slate-400">{item.jid.split('@')[0]}</p>}
                           </div>
+
+                          {/* Pending-members badge + identify trigger */}
+                          {isTr && tab === 'groups' && pending > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWizardGroup({ jid: item.jid, name: item.name });
+                              }}
+                              className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1
+                                         rounded-full bg-amber-50 border border-amber-200 text-amber-700
+                                         hover:bg-amber-100 transition-colors"
+                              title="Identify pending members"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              {pending} pending
+                            </button>
+                          )}
+                          {isTr && tab === 'groups' && pending === 0 && status && (
+                            <span className="text-[11px] font-semibold text-emerald-600">
+                              ✓ all identified
+                            </span>
+                          )}
+
                           {isBusy && <div className="w-3.5 h-3.5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />}
                         </div>
                       );
@@ -402,6 +442,15 @@ export default function WhatsAppOnboarding({ employeeId, sessionToken, onClose }
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {wizardGroup && (
+        <GroupIdentificationWizard
+          employeeId={employeeId}
+          groupJid={wizardGroup.jid}
+          groupName={wizardGroup.name}
+          onClose={() => { setWizardGroup(null); loadAllData(); }}
+        />
+      )}
     </div>
   );
 }
